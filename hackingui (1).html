@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Save-Mind | Cyber-Security Specialist</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- FONTS & VARS --- */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --neon-green: #00ff41;
+            --neon-blue: #00f3ff;
+            --neon-red: #ff003c;
+            --dark-bg: #050505;
+            --panel-bg: rgba(0, 20, 0, 0.85);
+            --glass: rgba(255, 255, 255, 0.05);
+            --grid-line: rgba(0, 255, 65, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            cursor: none; /* Custom Cursor */
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--neon-green);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-x: hidden;
+        }
+
+        /* --- BOOT SEQUENCE LOADER --- */
+        #boot-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Orbitron', sans-serif;
+            transition: opacity 1s ease;
+        }
+
+        .loader-text {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .progress-bar-container {
+            width: 300px;
+            height: 20px;
+            border: 2px solid var(--neon-green);
+            padding: 2px;
+            box-shadow: 0 0 15px var(--neon-green);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--neon-green);
+            width: 0%;
+            box-shadow: 0 0 20px var(--neon-green);
+            transition: width 0.1s linear;
+        }
+
+        /* --- CUSTOM CURSOR --- */
+        .cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--neon-blue);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10000;
+            transition: width 0.2s, height 0.2s, background 0.2s;
+            mix-blend-mode: difference;
+        }
+
+        .cursor.hovered {
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 243, 255, 0.2);
+            border-color: var(--neon-red);
+        }
+
+        /* --- BACKGROUND EFFECTS --- */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            opacity: 0.15;
+        }
+
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+            perspective: 500px;
+            transform-style: preserve-3d;
+            animation: gridMove 20s linear infinite;
+        }
+
+        /* --- HUD OVERLAY --- */
+        .hud-corner {
+            position: fixed;
+            width: 100px;
+            height: 100px;
+            border: 2px solid rgba(0, 255, 65, 0.3);
+            z-index: 10;
+            pointer-events: none;
+        }
+        .top-left { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .top-right { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .bottom-left { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .bottom-right { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: rgba(0, 255, 65, 0.5);
+            opacity: 0.4;
+            z-index: 5;
+            animation: scan 4s linear infinite;
+            pointer-events: none;
+        }
+
+        /* --- TYPOGRAPHY --- */
+        h1, h2, h3 {
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .glitch {
+            position: relative;
+            color: var(--neon-green);
+        }
+        
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--dark-bg);
+        }
+
+        .glitch::before {
+            left: 2px;
+            text-shadow: -1px 0 red;
+            clip-path: inset(0 0 0 0);
+            animation: glitch-anim-1 2s infinite linear alternate-reverse;
+        }
+
+        .glitch::after {
+            left: -2px;
+            text-shadow: -1px 0 blue;
+            clip-path: inset(0 0 0 0);
+            animation: glitch-anim-2 3s infinite linear alternate-reverse;
+        }
+
+        /* --- NAVBAR --- */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(5, 5, 5, 0.9);
+            border-bottom: 1px solid var(--neon-green);
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        .nav-logo {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--neon-blue);
+            text-decoration: none;
+            font-size: 1rem;
+            position: relative;
+            transition: 0.3s;
+        }
+
+        .nav-links a::before {
+            content: '[';
+            margin-right: 5px;
+            color: var(--neon-green);
+            opacity: 0;
+            transition: 0.3s;
+        }
+        .nav-links a::after {
+            content: ']';
+            margin-left: 5px;
+            color: var(--neon-green);
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .nav-links a:hover::before, .nav-links a:hover::after {
+            opacity: 1;
+        }
+
+        .nav-links a:hover {
+            color: #fff;
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            padding: 0 2rem;
+        }
+
+        .hero-content {
+            z-index: 2;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #fff, var(--neon-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.5rem;
+            color: var(--neon-blue);
+            margin-bottom: 2rem;
+            border-right: 2px solid var(--neon-blue);
+            white-space: nowrap;
+            overflow: hidden;
+            width: 0;
+            margin: 0 auto 2rem auto;
+            animation: typing 3s steps(30, end) forwards, blink-caret .75s step-end infinite;
+        }
+
+        /* --- SECTIONS COMMON --- */
+        section {
+            padding: 6rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            border-bottom: 2px solid var(--neon-red);
+            display: inline-block;
+            padding-bottom: 10px;
+            box-shadow: 0 5px 15px -5px var(--neon-red);
+        }
+
+        /* --- HOLOGRAPHIC ID CARD (ABOUT) --- */
+        .id-card-container {
+            display: flex;
+            justify-content: center;
+            perspective: 1000px;
+            margin-bottom: 3rem;
+        }
+
+        .id-card {
+            width: 400px;
+            height: 250px;
+            background: rgba(0, 20, 0, 0.6);
+            border: 2px solid var(--neon-green);
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+            animation: floatCard 4s ease-in-out infinite;
+            backdrop-filter: blur(5px);
+        }
+
+        .id-photo {
+            width: 120px;
+            height: 150px;
+            background: #000;
+            border: 1px solid var(--neon-blue);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .id-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(100%) sepia(100%) hue-rotate(90deg) saturate(300%); /* Matrix filter */
+        }
+
+        .scan-bar-id {
+            position: absolute;
+            width: 100%;
+            height: 5px;
+            background: var(--neon-red);
+            top: 0;
+            left: 0;
+            animation: scanId 2s linear infinite;
+        }
+
+        .id-details h3 { color: #fff; margin-bottom: 5px; }
+        .id-details p { font-size: 0.9rem; color: var(--neon-green); margin: 2px 0; }
+        .chip {
+            width: 40px;
+            height: 30px;
+            background: linear-gradient(135deg, #d4af37, #f2eecb);
+            margin-top: 10px;
+            border-radius: 5px;
+            position: relative;
+        }
+
+        /* --- TERMINAL WINDOW (PENTESTING) --- */
+        .terminal-window {
+            background: #1e1e1e;
+            border: 1px solid #555;
+            border-radius: 5px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            max-width: 800px;
+            margin: 0 auto 3rem auto;
+        }
+
+        .terminal-header {
+            background: #333;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #555;
+        }
+
+        .terminal-buttons { display: flex; gap: 8px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .red { background: #ff5f56; }
+        .yellow { background: #ffbd2e; }
+        .green { background: #27c93f; }
+
+        .terminal-title { margin-left: 15px; color: #aaa; font-size: 0.9rem; }
+
+        .terminal-body {
+            padding: 20px;
+            color: #ccc;
+            height: 300px;
+            overflow-y: auto;
+        }
+
+        .command { color: var(--neon-green); }
+        .output { color: #fff; margin-bottom: 10px; display: block; }
+        .error { color: var(--neon-red); }
+
+        /* --- GRID CARDS --- */
+        .cyber-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .cyber-card {
+            background: rgba(0, 10, 0, 0.8);
+            border: 1px solid var(--neon-green);
+            padding: 2rem;
+            position: relative;
+            transition: 0.3s;
+            clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
+        }
+
+        .cyber-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 2px;
+            background: var(--neon-green);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: 0.4s;
+        }
+
+        .cyber-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+        }
+
+        .cyber-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .cyber-card h3 {
+            color: var(--neon-blue);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .cyber-card ul {
+            list-style: none;
+            padding-left: 1rem;
+        }
+
+        .cyber-card li {
+            margin-bottom: 0.5rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+
+        .cyber-card li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--neon-green);
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            text-align: center;
+            padding: 3rem;
+            background: #000;
+            border-top: 1px solid var(--neon-green);
+            color: #555;
+            font-size: 0.8rem;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes glitch-anim-1 {
+            0% { clip-path: inset(20% 0 80% 0); }
+            20% { clip-path: inset(60% 0 10% 0); }
+            40% { clip-path: inset(40% 0 50% 0); }
+            60% { clip-path: inset(80% 0 5% 0); }
+            80% { clip-path: inset(10% 0 70% 0); }
+            100% { clip-path: inset(30% 0 50% 0); }
+        }
+
+        @keyframes glitch-anim-2 {
+            0% { clip-path: inset(10% 0 60% 0); }
+            20% { clip-path: inset(30% 0 20% 0); }
+            40% { clip-path: inset(70% 0 10% 0); }
+            60% { clip-path: inset(20% 0 50% 0); }
+            80% { clip-path: inset(50% 0 30% 0); }
+            100% { clip-path: inset(0% 0 80% 0); }
+        }
+
+        @keyframes typing { from { width: 0; } to { width: 100%; } }
+        @keyframes blink-caret { from, to { border-color: transparent; } 50% { border-color: var(--neon-blue); } }
+        @keyframes scanId { 0% { top: 0%; } 100% { top: 100%; } }
+        @keyframes scan { 0% { top: 0%; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        @keyframes floatCard { 0%, 100% { transform: translateY(0) rotateX(0); } 50% { transform: translateY(-10px) rotateX(2deg); } }
+        @keyframes gridMove { 0% { transform: perspective(500px) rotateX(20deg) translateY(0); } 100% { transform: perspective(500px) rotateX(20deg) translateY(40px); } }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .nav-links { display: none; } /* Simplified for mobile */
+            .cursor { display: none; } * { cursor: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Custom Cursor -->
+    <div class="cursor"></div>
+
+    <!-- Boot Loader -->
+    <div id="boot-loader">
+        <div class="loader-text">SYSTEM INITIALIZATION...</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div id="boot-log" style="margin-top: 10px; font-size: 0.8rem; color: var(--neon-blue);">Loading modules...</div>
+    </div>
+
+    <!-- Backgrounds -->
+    <canvas id="matrix-canvas"></canvas>
+    <div class="grid-bg"></div>
+    <div class="scan-line"></div>
+
+    <!-- HUD Elements -->
+    <div class="hud-corner top-left"></div>
+    <div class="hud-corner top-right"></div>
+    <div class="hud-corner bottom-left"></div>
+    <div class="hud-corner bottom-right"></div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-logo">&lt;SAVE-MIND /&gt;</div>
+        <ul class="nav-links">
+            <li><a href="#about" class="hover-link">[IDENTITY]</a></li>
+            <li><a href="#pentesting" class="hover-link">[OFFENSIVE_SEC]</a></li>
+            <li><a href="#skills" class="hover-link">[ARSENAL]</a></li>
+            <li><a href="#projects" class="hover-link">[OPERATIONS]</a></li>
+            <li><a href="#contact" class="hover-link">[UPLINK]</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="glitch" data-text="SYSTEM OVERRIDE">SYSTEM OVERRIDE</h1>
+            <p>Full-Stack Developer // AI Specialist // Security Expert</p>
+            <a href="#projects" class="hover-link" style="color: var(--neon-red); border: 1px solid var(--neon-red); padding: 10px 30px; text-decoration: none; text-transform: uppercase;">Initiate Protocol</a>
+        </div>
+    </section>
+
+    <!-- About / ID Section -->
+    <section id="about">
+        <h2 class="section-title">>> AGENT IDENTITY</h2>
+        <div class="id-card-container">
+            <div class="id-card hover-link">
+                <div class="id-photo">
+                    <!-- Using a tech-abstract placeholder image -->
+                    <img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" alt="Agent Face">
+                    <div class="scan-bar-id"></div>
+                </div>
+                <div class="id-details">
+                    <h3>SAVE-MIND</h3>
+                    <p>Level: 99 (Architect)</p>
+                    <p>Clearance: TOP SECRET</p>
+                    <p>Status: ONLINE</p>
+                    <div class="chip"></div>
+                </div>
+            </div>
+        </div>
+        <p style="text-align: center; max-width: 800px; margin: 0 auto; font-size: 1.1rem; line-height: 1.8;">
+            Greetings. I am a digital architect specializing in high-security full-stack applications, AI integration, and penetration testing. 
+            With a BCA background and years of field experience, I construct fortified digital environments and test their limits to ensure absolute integrity.
+        </p>
+    </section>
+
+    <!-- Pentesting / Cyber Security Section -->
+    <section id="pentesting">
+        <h2 class="section-title" style="color: var(--neon-red); border-color: var(--neon-red);">>> OFFENSIVE SECURITY</h2>
+        
+        <div class="terminal-window hover-link">
+            <div class="terminal-header">
+                <div class="terminal-buttons"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+                <div class="terminal-title">root@kali:~# pentest_session.log</div>
+            </div>
+            <div class="terminal-body" id="terminal-content">
+                <div class="output">[*] Initializing Network Interface... <span style="color:var(--neon-green)">DONE</span></div>
+                <div class="output">[*] Loading Vulnerability Database... <span style="color:var(--neon-green)">DONE</span></div>
+                <br>
+                <div class="command"># nmap -sV -p- 192.168.1.105</div>
+                <div class="output">Starting Nmap 7.92 ( https://nmap.org )</div>
+                <div class="output">Scanning localhost...</div>
+                <div class="output">PORT    STATE SERVICE VERSION</div>
+                <div class="output">22/tcp  open  ssh     OpenSSH 8.2</div>
+                <div class="output">80/tcp  open  http    Apache 2.4.41</div>
+                <div class="output">443/tcp open  https   Nginx 1.18</div>
+                <br>
+                <div class="command"># sqlmap -u "http://target.com/login?id=1" --dbs</div>
+                <div class="output">sqlmap identified the following injection point...</div>
+                <div class="output">[!] WARNING: Potential SQL Injection found.</div>
+                <br>
+                <div class="command"># metasploit</div>
+                <div class="output">msf6 > use exploit/windows/smb/ms17_010_eternalblue</div>
+                <div class="output">[*] Exploit completed, but no session was created.</div>
+                <br>
+                <div class="command" style="color: #fff; animation: blink-caret 1s step-end infinite;">_</div>
+            </div>
+        </div>
+
+        <div class="cyber-grid" style="margin-top: 2rem;">
+            <div class="cyber-card hover-link">
+                <h3><i class="fas fa-bug"></i> Vulnerability Assessment</h3>
+                <p>Identifying security holes in web applications, networks, and mobile apps before attackers do.</p>
+            </div>
+            <div class="cyber-card hover-link">
+                <h3><i class="fas fa-user-secret"></i> Penetration Testing</h3>
+                <p>Simulating cyber attacks (Black/White box) to test defense mechanisms.</p>
+            </div>
+            <div class="cyber-card hover-link">
+                <h3><i class="fas fa-shield-virus"></i> Malware Analysis</h3>
+                <p>Static and dynamic analysis of malicious software to understand payloads.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Skills Section -->
+    <section id="skills">
+        <h2 class="section-title">>> TECHNICAL ARSENAL</h2>
+        <div class="cyber-grid">
+            <!-- Development -->
+            <div class="cyber-card hover-link">
+                <h3>Web & Mobile</h3>
+                <ul>
+                    <li>React.js, Vue.js, Angular</li>
+                    <li>Node.js, Python (Django/FastAPI)</li>
+                    <li>Kotlin, Jetpack Compose</li>
+                    <li>Flutter, React Native</li>
+                    <li>Docker, Kubernetes</li>
+                </ul>
+            </div>
+            
+            <!-- AI / ML -->
+            <div class="cyber-card hover-link">
+                <h3>Artificial Intelligence</h3>
+                <ul>
+                    <li>TensorFlow, PyTorch</li>
+                    <li>NLP & Transformers</li>
+                    <li>Computer Vision (OpenCV)</li>
+                    <li>ChromaDB, FAISS</li>
+                    <li>Large Language Models</li>
+                </ul>
+            </div>
+
+            <!-- Security Tools -->
+            <div class="cyber-card hover-link">
+                <h3>Security Tools</h3>
+                <ul>
+                    <li>Metasploit Framework</li>
+                    <li>Burp Suite Pro</li>
+                    <li>Wireshark, Nmap</li>
+                    <li>OWASP ZAP</li>
+                    <li>IDA Pro, Ghidra</li>
+                </ul>
+            </div>
+
+            <!-- Blockchain -->
+            <div class="cyber-card hover-link">
+                <h3>Web3 & Blockchain</h3>
+                <ul>
+                    <li>Solidity, Rust (Solana)</li>
+                    <li>Smart Contract Auditing</li>
+                    <li>DeFi Protocols</li>
+                    <li>Hardhat, Truffle</li>
+                    <li>Chainlink Oracles</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Projects Section -->
+    <section id="projects">
+        <h2 class="section-title">>> MISSION LOGS (PROJECTS)</h2>
+        <div class="cyber-grid">
+            <div class="cyber-card hover-link">
+                <div style="height: 150px; background: #000; margin-bottom: 1rem; overflow: hidden; border: 1px solid var(--neon-blue);">
+                    <!-- Placeholder for Project Screenshot -->
+                    <img src="https://images.unsplash.com/photo-1558494949-ef526b0042a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" style="width:100%; height:100%; object-fit:cover; opacity: 0.7;">
+                </div>
+                <h3>AI Threat Detection</h3>
+                <p>Anomaly detection system using PyTorch to identify zero-day attacks in real-time network traffic.</p>
+                <br>
+                <span style="color: var(--neon-blue); border: 1px solid var(--neon-blue); padding: 5px 10px; font-size: 0.8rem;">PYTHON</span>
+                <span style="color: var(--neon-blue); border: 1px solid var(--neon-blue); padding: 5px 10px; font-size: 0.8rem;">PYTORCH</span>
+            </div>
+
+            <div class="cyber-card hover-link">
+                <div style="height: 150px; background: #000; margin-bottom: 1rem; overflow: hidden; border: 1px solid var(--neon-blue);">
+                    <img src="https://images.unsplash.com/photo-1614728853975-69c760c94063?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" style="width:100%; height:100%; object-fit:cover; opacity: 0.7;">
+                </div>
+                <h3>Secure Blockchain Vault</h3>
+                <p>Decentralized storage solution with end-to-end encryption and access control via Ethereum smart contracts.</p>
+                <br>
+                <span style="color: var(--neon-blue); border: 1px solid var(--neon-blue); padding: 5px 10px; font-size: 0.8rem;">SOLIDITY</span>
+                <span style="color: var(--neon-blue); border: 1px solid var(--neon-blue); padding: 5px 10px; font-size: 0.8rem;">IPFS</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" style="text-align: center;">
+        <h2 class="section-title">>> ESTABLISH UPLINK</h2>
+        <div style="font-size: 3rem; margin: 2rem 0;">
+            <a href="#" style="color: var(--neon-green); margin: 0 20px;"><i class="fab fa-github hover-link"></i></a>
+            <a href="#" style="color: var(--neon-green); margin: 0 20px;"><i class="fab fa-linkedin hover-link"></i></a>
+            <a href="#" style="color: var(--neon-green); margin: 0 20px;"><i class="fas fa-envelope hover-link"></i></a>
+            <a href="#" style="color: var(--neon-green); margin: 0 20px;"><i class="fab fa-twitter hover-link"></i></a>
+        </div>
+        <p style="color: #666;">ENCRYPTED CHANNEL: save-mind@secure.net</p>
+    </section>
+
+    <footer>
+        <p>&copy; 2026 SYSTEM ARCHITECT. ALL RIGHTS RESERVED.</p>
+        <p>SYSTEM STATUS: STABLE // UPTIME: 99.99%</p>
+    </footer>
+
+    <script>
+        // --- 1. BOOT SEQUENCE LOGIC ---
+        window.addEventListener('load', () => {
+            const loader = document.getElementById('boot-loader');
+            const bar = document.getElementById('progress-bar');
+            const log = document.getElementById('boot-log');
+            let width = 0;
+
+            const bootMessages = [
+                "Loading Kernel...",
+                "Decrypting Secure Keys...",
+                "Establishing Neural Link...",
+                "Initializing Cyber-Suite...",
+                "Access Granted."
+            ];
+
+            const interval = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    loader.style.opacity = '0';
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                    }, 1000);
+                } else {
+                    width++;
+                    bar.style.width = width + '%';
+                    if (width % 20 === 0 && width/20 < bootMessages.length) {
+                        log.innerText = bootMessages[width/20];
+                    }
+                }
+            }, 30);
+        });
+
+        // --- 2. CUSTOM CURSOR ---
+        const cursor = document.querySelector('.cursor');
+        const hoverLinks = document.querySelectorAll('.hover-link');
+
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        hoverLinks.forEach(link => {
+            link.addEventListener('mouseenter', () => cursor.classList.add('hovered'));
+            link.addEventListener('mouseleave', () => cursor.classList.remove('hovered'));
+        });
+
+        // --- 3. MATRIX DIGITAL RAIN EFFECT ---
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%";
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+
+        const drops = [];
+        for(let x = 0; x < columns; x++) {
+            drops[x] = 1;
+        }
+
+        function drawMatrix() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "#00ff41"; // Green text
+            ctx.font = fontSize + "px monospace";
+
+            for(let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 33);
+
+        // --- 4. TERMINAL TYPEWRITER SIMULATION ---
+        // Auto-scroll terminal to bottom
+        const terminalBody = document.getElementById('terminal-content');
+        terminalBody.scrollTop = terminalBody.scrollHeight;
+
+        window.addEventListener('scroll', () => {
+            let value = window.scrollY;
+            // Parallax for grid
+            document.querySelector('.grid-bg').style.transform = `perspective(500px) rotateX(20deg) translateY(${value * 0.5}px)`;
+        });
+
+    </script>
+</body>
+</html>
